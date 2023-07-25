@@ -4,7 +4,7 @@
 #3.Co-occurrence network analysis
 #4.NGS shotgun isolates genomics processing
 #5.Gnen function annotation
-#6.partial correlation to check the confunding effect from covariates
+
 
 
 ##############################################
@@ -89,10 +89,27 @@ for(i in 1:ncol(sp)){
   
 raw[lower.tri(raw, diag = T)] <- NA
 ind <- which(is.na(raw)== F,arr.ind = T)
-result <- data.frame(start = colnames(p)[ind[,1]],end = colnames(p)[ind[,2]], raw = raw[ind], cor = cor[ind],
-                      p = p[ind],stringsAsFactors = F)
+result <- data.frame(start = colnames(p)[ind[,1]],end = colnames(p)[ind[,2]], raw = raw[ind], cor = cor[ind],p = p[ind],stringsAsFactors = F)
 row.names(result) <- paste(result$start, result$end, sep = "_to_")
 result$fdr <- NA
+
+#100× permutation
+per_p <- matrix(NA, nrow = nrow(result), ncol = 1)
+colnames(per_p) <- 'permutation_i'  
+per <- matrix(sample(sp), ncol = ncol(sp))
+p <- matrix(NA, nrow=ncol(sp), ncol=ncol(sp))
+raw <- matrix(NA,nrow = ncol(sp),ncol = ncol(sp))
+for (i in 1:ncol(sp)) {
+  for (j in 1:ncol(sp)) {
+    raw[i,j]=paste(length(which(sp[,i]==1&sp[,j]==1)),length(which(sp[,i]==0&sp[,j]==0)),length(which(sp[,i]==0&sp[,j]==1)),length(which(sp[,i]==1&sp[,j]==0)),sep = "_")        
+    p[i,j]=chisq.test(matrix(c(length(which(unlist(per[,i])==1&unlist(per[,j])==1))+0.5, length(which(unlist(per[,i])==1&unlist(per[,j])==0))+0.5,length(which(unlist(per[,i])==0&unlist(per[,j])==1))+0.5, length(which(unlist(per[,i])==0&unlist(per[,j])==0))+0.5), nrow = 2))$p.value
+  } 
+}
+
+raw[lower.tri(raw, diag = T)] <- NA
+ind <- which(is.na(raw)== F,arr.ind = T)
+per_p[, 1] = p[ind]
+for(i in (1:nrow(result))){result[,6][i]=(length(which(per_p <= result[,5][i]))/100)/(i)}
 write.table(result, 'co_occurrence_result.txt', sep = '\t', quote = F, row.names = FALSE)
 
 ##############################################
