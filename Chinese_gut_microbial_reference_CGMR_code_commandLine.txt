@@ -1,0 +1,114 @@
+#### main codes for CGMR project 
+#1.Metagenome assemmbly
+#2.Compare with other database
+#3.Co-occurrence network analysis
+#4.NGS shotgun isolates genomics processing
+#5.Gnen function annotation
+#6.partial correlation to check the confunding effect from covariates
+
+
+##############################################
+########## 1. Metagenome Assemmbly ###########
+##############################################
+
+## We utilized a single sample metagenomic de novo assembly pipeline
+## Configure related soft and path
+dir=./
+export PATH=~/soft/Trimmomatic-0.33:$PATH
+KNEADDATA_DB_HUMAN_GENOME=~/database/kneaddata/Homo_sapiens
+
+## step_1 remove host-contaminated sequences
+echo "# step_1.1 kneadata...."
+mkdir -p ${dir}/kneaddata/filtering_data/
+mkdir -p ${dir}/kneaddata/log
+kneaddata --input ${dir}/cleandata/${sample}_R1.fq.gz --input ${dir}/cleandata/${sample}_R2.fq.gz -t ${threads} --reference-db ${KNEADDATA_DB_HUMAN_GENOME} --output ${dir}/kneaddata/filtering_data/ --run-fastqc-start --run-fastqc-end  --log ${dir}/kneaddata/log/${sample}.log
+
+echo "# step_1.2 move files...."
+mkdir -p ${dir}/kneaddata/clean_reads/
+mv ${dir}/kneaddata/filtering_data/${sample}_kneaddata_paired_1.fastq ${dir}/kneaddata/filtering_data/${sample}_kneaddata_paired_2.fastq ${dir}/kneaddata/clean_reads/
+rm -r ${dir}/kneaddata/filtering_data/
+
+## step_2 use clean reads to perform de novo assembly
+echo "#step_2 single sample assembly...."
+mkdir -p ${dir}/megahit/${sample}
+megahit -1 ${dir}/kneaddata/clean_reads/${sample}_kneaddata_paired_1.fastq -2 ${dir}/kneaddata/clean_reads/${sample}_kneaddata_paired_2.fastq -o ${dir}/megahit/${sample} -t ${threads} --out-prefix ${sample}
+
+## step_3 metagenomic binning
+echo "#step3.1 build index"
+mkdir -p ${dir}/metabat/index
+bowtie2-build --threads ${threads} -f  ${dir}/megahit/${sample}/${sample}.contigs.fa ${dir}/metabat/index/${sample} 
+echo "#step3.2 get sam"
+mkdir -p ${dir}/metabat/bam
+bowtie2 --threads  ${threads} -x ${dir}/metabat/index/${sample} -1 ${dir}/kneaddata/clean_reads/${sample}_kneaddata_paired_1.fastq -2 ${dir}/kneaddata/clean_reads/${sample}_kneaddata_paired_2.fastq | samtools sort -@ ${threads} -O bam -o - > ${dir}/metabat/bam/${sample}_sort.bam
+echo "#step3.3 stat contig depth"
+mkdir ${dir}/metabat/depth
+jgi_summarize_bam_contig_depths --outputDepth  ${dir}/metabat/depth/${sample}_depth.txt ${dir}/metabat/bam/${sample}_sort.bam 
+echo "#step3.4. binning"
+mkdir -p ${dir}/metabat/bin
+metabat -i ${dir}/megahit/${sample}/${sample}.contigs.fa -m 1500 -a ${dir}/metabat/depth/${sample}_depth.txt -t ${threads} -o ${dir}/metabat/bin/${sample}/${sample}
+
+## step_4 genome quality assessing
+mkdir -p ${dir}/checkM/${sample}/
+checkm lineage_wf ${dir}/metabat/bin/${sample} -x fa --nt --tab_table -f ${dir}/checkM/${sample}/bins_qa.txt ${dir}/checkM/${sample}
+
+## step_5 Taxonomic classification
+gtdbtk classify_wf --genome_dir input  --extension fa --out_dir output --cpus 12 --force --debug --skip_ani_screen
+
+##############################################
+######### 2. Compare with other db ###########
+##############################################
+
+# We compared with each database using the following command.
+dRep dereplicate output  -g input/*.fna  --S_algorithm fastANI --multiround_primary_clustering  --greedy_secondary_clustering -comp 50 -con 5 -ms 10000 -pa 0.9 -sa 0.95 -nc 0.30 -cm larger -p 28
+
+
+##############################################
+######### 3. co-occurrence network ###########
+##############################################
+
+matrix <- read.csv('sp_sam_matrix.txt',sep='\t', row.names = 1, check.names = FALSE)
+sp <- as.data.frame(t(matrix)) 
+
+p <- matrix(NA, nrow=ncol(sp), ncol=ncol(sp))
+cor <- matrix(NA,nrow = ncol(sp),ncol = ncol(sp))
+raw <- matrix(NA,nrow = ncol(sp),ncol = ncol(sp))
+row.names(p) <- colnames(sp)
+colnames(p) <- colnames(sp)
+
+for(i in 1:ncol(sp)){
+  for(j in 1:ncol(sp)){
+    cor[i,j]=log(((length(which(sp[,i]==1&sp[,j]==1))+0.5)*(length(which(sp[,i]==0&sp[,j]==0))+0.5))/
+                 ((length(which(sp[,i]==1&sp[,j]==0))+0.5)*(length(which(sp[,i]==0&sp[,j]==1))+0.5)))
+    raw[i,j]=paste(length(which(sp[,i]==1&sp[,j]==1)),length(which(sp[,i]==0&sp[,j]==0)),
+                   length(which(sp[,i]==0&sp[,j]==1)),length(which(sp[,i]==1&sp[,j]==0)),sep = "_")
+    p[i,j]=chisq.test(matrix(c(length(which(sp[,i]==1&sp[,j]==1))+0.5,length(which(sp[,i]==1&sp[,j]==0))+0.5,
+                               length(which(sp[,i]==0&sp[,j]==1))+0.5,length(which(sp[,i]==0&sp[,j]==0))+0.5),
+                             nrow = 2))$p.value
+  }
+}
+  
+raw[lower.tri(raw, diag = T)] <- NA
+ind <- which(is.na(raw)== F,arr.ind = T)
+result <- data.frame(start = colnames(p)[ind[,1]],end = colnames(p)[ind[,2]], raw = raw[ind], cor = cor[ind],
+                      p = p[ind],stringsAsFactors = F)
+row.names(result) <- paste(result$start, result$end, sep = "_to_")
+result$fdr <- NA
+write.table(result, 'co_occurrence_result.txt', sep = '\t', quote = F, row.names = FALSE)
+
+##############################################
+######### 4. isolates genome process #########
+##############################################
+
+## step_1 quality control for raw reads
+fastp -i ${sample}_1.fastq.gz -I ${sample}_2.fastq.gz -o ${sample}_clean_1.fastq.gz -O ${sample}_clean_2.fastq.gz --thread 4 --html ${sample}.html --json ${sample}.json
+
+## step_2 isolates genome assembly
+megahit -1 ${sample}_clean_1.fastq.gz -2 ${sample}_clean_2.fastq.gz  -o ${sample} -t 4 --out-prefix ${sample}
+
+
+##############################################
+######## 5. gene function annotation #########
+##############################################
+
+prokka ${dir}/input/${sample}_genes.fna --outdir ${dir}/output/${sample}  --prefix ${sample} --kingdom Bacteria  --force  --cpus 4 --addgenes
+
