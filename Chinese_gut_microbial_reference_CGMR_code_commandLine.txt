@@ -3,7 +3,7 @@
 #2.Compare with other database
 #3.Co-occurrence network analysis
 #4.NGS shotgun isolates genomics processing
-#5.Gnen function annotation
+#5.Gene function annotation
 
 
 
