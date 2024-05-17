@@ -1,6 +1,6 @@
 Current status: published at Cell Genomics
 
-Pan Huang, Quanbing Dong, Yifeng Wang, Yunfan Tian, Shunhe Wang, Chengcheng Zhang, Leilei Yu, Fengwei Tian, Xiaoxiang Gao, Hang Guo, Shanrong Yi, Mingyang Li, Yang Liu, Qingsong Zhang, Wenwei Lu, Gang Wang, Bo Yang, Shumao Cui, Dongxu Hua, Xiuchao Wang, Yuwen Jiao, Lu Liu, Qiufeng Deng, Beining Ma, Tingting Wu, Huayiyang Zou, Jing Shi, Haifeng Zhang, Daming Fan, Yanhui Sheng, Jianxin Zhao, Liming Tang, Hao Zhang, Wei Sun, CGMR Consortium, Wei Chen, Xiangqing Kong, Lianmin Chen & Qixiao Zhai. Gut microbial genomes with paired isolates from China illustrate probiotic and cardiometabolic effects. Cell Genomics, 2024, in press.
+Pan Huang, Quanbing Dong, Yifeng Wang, Yunfan Tian, Shunhe Wang, Chengcheng Zhang, Leilei Yu, Fengwei Tian, Xiaoxiang Gao, Hang Guo, Shanrong Yi, Mingyang Li, Yang Liu, Qingsong Zhang, Wenwei Lu, Gang Wang, Bo Yang, Shumao Cui, Dongxu Hua, Xiuchao Wang, Yuwen Jiao, Lu Liu, Qiufeng Deng, Beining Ma, Tingting Wu, Huayiyang Zou, Jing Shi, Haifeng Zhang, Daming Fan, Yanhui Sheng, Jianxin Zhao, Liming Tang, Hao Zhang, Wei Sun, CGMR Consortium, Wei Chen, Xiangqing Kong, Lianmin Chen & Qixiao Zhai. Gut microbial genomes with paired isolates from China illustrate probiotic and cardiometabolic effects. Cell Genomics, 2024, DOI:https://doi.org/10.1016/j.xgen.2024.100559.
 
 
 Published version: https://www.cell.com/cell-genomics/fulltext/S2666-979X(24)00125-3
